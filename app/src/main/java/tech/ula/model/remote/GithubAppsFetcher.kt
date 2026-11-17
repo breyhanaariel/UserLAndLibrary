@@ -24,8 +24,13 @@ class GithubAppsFetcher(
     private operator fun <T> List<T>.component7() = get(6)
 
     private fun baseUrl(): String {
-        // Sakura Candy Milestone 1: use the verified GIMP catalog; preserve preferences unchanged.
-        return "https://raw.githubusercontent.com/CypherpunkArmory/UserLAnd-Assets-Support/staging/apps"
+        val customEnabled = sharedPreferences.getBoolean(
+            "pref_custom_apps_enabled", BuildConfig.DEFAULT_CUSTOM_APPS_ENABLED
+        )
+        val configured = sharedPreferences.getString("pref_apps", BuildConfig.DEFAULT_APPS_URL)
+        return (if (customEnabled) configured else BuildConfig.DEFAULT_APPS_URL)
+            ?.trim()?.trimEnd('/')?.takeIf { it.startsWith("https://") }
+            ?: BuildConfig.DEFAULT_APPS_URL
     }
 
     @Throws(IOException::class)
@@ -42,10 +47,12 @@ class GithubAppsFetcher(
                 val line = original.trim()
                 if (line.isEmpty()) return@mapIndexedNotNull null
                 val parts = line.split(',').map { it.trim() }
-                if (parts.size != 7) {
-                    throw IOException("Catalog line $lineNumber: expected 7 fields, got ${parts.size}: $line")
+                if (parts.size != 7 && parts.size != 8) {
+                    throw IOException("Catalog line $lineNumber: expected 7 or 8 fields, got ${parts.size}: $line")
                 }
-                val (name, category, filesystem, cli, gui, paid, versionText) = parts
+                // Legacy bundled catalogs include a Supports Standalone column.
+                val normalized = if (parts.size == 8) parts.filterIndexed { i, _ -> i != 5 } else parts
+                val (name, category, filesystem, cli, gui, paid, versionText) = normalized
                 if (name.isBlank() || category.isBlank() || filesystem.isBlank()) {
                     throw IOException("Catalog line $lineNumber: name, category, and filesystem are required")
                 }
