@@ -36,47 +36,33 @@ class AppsRepository(
     }
 
     suspend fun refreshData(scope: CoroutineScope) {
-        val distributionsList = mutableSetOf<String>()
         refreshStatus.postValue(RefreshStatus.ACTIVE)
-        val jobs = mutableListOf<Job>()
-
-        var appsUrl = BuildConfig.DEFAULT_APPS_URL
-        if (sharedPreferences.getBoolean("pref_custom_apps_enabled", BuildConfig.DEFAULT_CUSTOM_APPS_ENABLED))
-            appsUrl = sharedPreferences.getString("pref_apps", BuildConfig.DEFAULT_APPS_URL)!!
-        var flush = false
-        if (sharedPreferences.contains("prev_pref_apps_repo")) {
-            if (!appsUrl.equals(sharedPreferences.getString("prev_pref_apps_repo", BuildConfig.DEFAULT_APPS_URL))) {
-                flush = true
-            }
-        }
-        with(sharedPreferences.edit()) {
-            putString("prev_pref_apps_repo", appsUrl)
-            apply()
-        }
-        if (flush) {
-            appsDao.deleteAllApps()
-        }
-
+        val distributionsList = mutableSetOf<String>()
         try {
-            remoteAppsSource.fetchAppsList().forEach { app ->
-                jobs.add(scope.launch {
-                    if (app.category.toLowerCase(Locale.ENGLISH) == "distribution") distributionsList.add(app.name)
-                    remoteAppsSource.fetchAppIcon(app)
-                    remoteAppsSource.fetchAppDescription(app)
-                    remoteAppsSource.fetchAppScript(app)
-                    appsDao.insertApp(app) // Insert the db element last to force observer refresh
-            }) }
+            // Validate the entire catalog and download assets before changing database entries.
+            val apps = remoteAppsSource.fetchAppsList()
+            for (app in apps) {
+                remoteAppsSource.fetchAppIcon(app)
+                remoteAppsSource.fetchAppDescription(app)
+                remoteAppsSource.fetchAppScript(app)
+                if (app.category.lowercase(Locale.ENGLISH) == "distribution") {
+                    distributionsList.add(app.name)
+                }
+            }
+            // Remove only cached app catalog records, not filesystems, sessions or user files.
+            // This replaces stale GIMP metadata (filesystemRequired=gimp) with Debian metadata.
+            appsDao.deleteAllApps()
+            for (app in apps) {
+                appsDao.insertApp(app)
+            }
+            appsPreferences.setDistributionsList(distributionsList)
+            refreshStatus.postValue(RefreshStatus.FINISHED)
         } catch (err: Exception) {
             refreshStatus.postValue(RefreshStatus.FAILED)
-            val message = err.message ?: "Not found"
-            val breadcrumb = UlaBreadcrumb(className, BreadcrumbType.RuntimeError, message)
-            logger.addBreadcrumb(breadcrumb)
+            logger.addExceptionBreadcrumb(err)
+            logger.addBreadcrumb(UlaBreadcrumb(className, BreadcrumbType.RuntimeError, err.toString()))
             logger.sendEvent("App Refresh Failed")
-            return
         }
-        jobs.joinAll()
-        refreshStatus.postValue(RefreshStatus.FINISHED)
-        appsPreferences.setDistributionsList(distributionsList)
     }
 }
 

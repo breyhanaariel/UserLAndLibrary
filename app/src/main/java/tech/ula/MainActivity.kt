@@ -33,10 +33,10 @@ import androidx.navigation.ui.NavigationUI.setupWithNavController
 import androidx.preference.Preference
 import com.google.android.material.textfield.TextInputEditText
 import com.google.gson.Gson
-import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import tech.ula.databinding.ActivityMainBinding
 import tech.ula.model.entities.App
 import tech.ula.model.entities.ServiceType
 import tech.ula.model.entities.Session
@@ -57,6 +57,8 @@ import java.net.NetworkInterface
 import java.util.*
 
 class MainActivity : AppCompatActivity(), SessionListFragment.SessionSelection, AppsListFragment.AppSelection, FilesystemListFragment.FilesystemListProgress {
+
+    private lateinit var binding: ActivityMainBinding
 
     val className = "MainActivity"
 
@@ -182,14 +184,15 @@ class MainActivity : AppCompatActivity(), SessionListFragment.SessionSelection, 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-        setSupportActionBar(toolbar)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        setSupportActionBar(binding.toolbar)
         notificationManager.createServiceNotificationChannel() // Android O requirement
 
         setNavStartDestination()
         setProgressDialogNavListeners()
 
-        setupWithNavController(bottom_nav_view, navController)
+        setupWithNavController(binding.bottomNavView, navController)
 
         viewModel.getState().observe(this, stateObserver)
 
@@ -228,10 +231,10 @@ class MainActivity : AppCompatActivity(), SessionListFragment.SessionSelection, 
     private fun setNavStartDestination() {
         val userPreference = defaultSharedPreferences.getString("pref_default_nav_location", "Apps")
         val graph = navController.navInflater.inflate(R.navigation.nav_graph)
-        graph.startDestination = when (userPreference) {
+        graph.setStartDestination(when (userPreference) {
             getString(R.string.sessions) -> R.id.session_list_fragment
             else -> R.id.app_list_fragment
-        }
+        })
         navController.graph = graph
         val bottomNavView = this.findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(
             R.id.bottom_nav_view
@@ -415,7 +418,10 @@ class MainActivity : AppCompatActivity(), SessionListFragment.SessionSelection, 
                 )
         registerReceiver(
             downloadBroadcastReceiver,
-            IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+            IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+            if (android.os.Build.VERSION.SDK_INT >= 33)
+                0x4 /* Context.RECEIVER_NOT_EXPORTED */
+            else 0
         )
     }
 
@@ -834,11 +840,11 @@ class MainActivity : AppCompatActivity(), SessionListFragment.SessionSelection, 
         if (!progressBarIsVisible) {
             val inAnimation = AlphaAnimation(0f, 1f)
             inAnimation.duration = 200
-            layout_progress.animation = inAnimation
+            binding.layoutProgress.animation = inAnimation
 
-            layout_progress.visibility = View.VISIBLE
-            layout_progress.isFocusable = true
-            layout_progress.isClickable = true
+            binding.layoutProgress.visibility = View.VISIBLE
+            binding.layoutProgress.isFocusable = true
+            binding.layoutProgress.isClickable = true
             progressBarIsVisible = true
         }
     }
@@ -846,17 +852,17 @@ class MainActivity : AppCompatActivity(), SessionListFragment.SessionSelection, 
     private fun updateProgressBar(step: String, details: String) {
         displayProgressBar()
 
-        text_session_list_progress_step.text = step
-        text_session_list_progress_details.text = details
+        binding.textSessionListProgressStep.text = step
+        binding.textSessionListProgressDetails.text = details
     }
 
     private fun killProgressBar() {
         val outAnimation = AlphaAnimation(1f, 0f)
         outAnimation.duration = 200
-        layout_progress.animation = outAnimation
-        layout_progress.visibility = View.GONE
-        layout_progress.isFocusable = false
-        layout_progress.isClickable = false
+        binding.layoutProgress.animation = outAnimation
+        binding.layoutProgress.visibility = View.GONE
+        binding.layoutProgress.isFocusable = false
+        binding.layoutProgress.isClickable = false
         progressBarIsVisible = false
     }
 

@@ -15,6 +15,12 @@ class PermissionHandler {
         private const val permissionRequestCode = 1234
 
         fun permissionsAreGranted(context: Context): Boolean {
+            // Android 13+ does not grant the legacy storage permissions.
+            // Initial setup uses app-specific storage; shared documents
+            // remain accessible through the Android document picker.
+            if (Build.VERSION.SDK_INT >= 33) {
+                return true
+            }
             return (
                         ContextCompat.checkSelfPermission(context,
                                 Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&

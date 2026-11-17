@@ -351,4 +351,8 @@
     <string name="pref_title_minimum_barcode_width">Minimum barcode width</string>
     <string name="pref_summary_minimum_barcode_width" formatted="false">Relative to the reticle width, ranges from 20% to 80% (only applicable when barcode size check enabled)</string>
 
+    <string name="input_method_direct_swipe_pan">Direct, Swipe Pan</string>
+    <string name="input_method_direct_drag_pan">Direct, Drag Pan</string>
+    <string name="input_method_touchpad">Touchpad</string>
+    <string name="input_method_single_handed">Single Handed</string>
 </resources>

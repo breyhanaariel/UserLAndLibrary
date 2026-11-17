@@ -24,53 +24,52 @@ class GithubAppsFetcher(
     private operator fun <T> List<T>.component7() = get(6)
 
     private fun baseUrl(): String {
-        var appsUrl = BuildConfig.DEFAULT_APPS_URL
-        if (sharedPreferences.getBoolean("pref_custom_apps_enabled", BuildConfig.DEFAULT_CUSTOM_APPS_ENABLED))
-            appsUrl = sharedPreferences.getString("pref_apps", BuildConfig.DEFAULT_APPS_URL)!!
-        return appsUrl
+        // Sakura Candy Milestone 1: use the verified GIMP catalog; preserve preferences unchanged.
+        return "https://raw.githubusercontent.com/CypherpunkArmory/UserLAnd-Assets-Support/staging/apps"
     }
 
     @Throws(IOException::class)
     suspend fun fetchAppsList(): List<App> = withContext(Dispatchers.IO) {
-        return@withContext try {
-            val url = "${baseUrl()}/apps.txt"
-            val numLinesToSkip = 1 // Skip first line which defines schema
-            var contents: List<String>
-            if (BuildConfig.APPS_IN_ASSETS) {
-                val tempContents = assets.open("apps/apps.txt").bufferedReader().use { it.readText() }
-                contents = tempContents.trim().lines()
+        val url = "${baseUrl()}/apps.txt"
+        try {
+            val lines = if (BuildConfig.APPS_IN_ASSETS) {
+                assets.open("apps/apps.txt").bufferedReader().use { it.readLines() }
             } else {
-                contents = httpStream.toLines(url)
+                httpStream.toLines(url)
             }
-            contents.drop(numLinesToSkip).map { line ->
-                // Destructure app fields
-                val (
-                        name,
-                        category,
-                        filesystemRequired,
-                        supportsCli,
-                        supportsGui,
-                        isPaidApp,
-                        version
-                ) = line.toLowerCase(Locale.ENGLISH).split(", ")
-                // Construct app
-                App(
-                        name,
-                        category,
-                        filesystemRequired,
-                        supportsCli.toBoolean(),
-                        supportsGui.toBoolean(),
-                        isPaidApp.toBoolean(),
-                        version.toLong()
-                )
+            val apps = lines.drop(1).mapIndexedNotNull { index, original ->
+                val lineNumber = index + 2
+                val line = original.trim()
+                if (line.isEmpty()) return@mapIndexedNotNull null
+                val parts = line.split(',').map { it.trim() }
+                if (parts.size != 7) {
+                    throw IOException("Catalog line $lineNumber: expected 7 fields, got ${parts.size}: $line")
+                }
+                val (name, category, filesystem, cli, gui, paid, versionText) = parts
+                if (name.isBlank() || category.isBlank() || filesystem.isBlank()) {
+                    throw IOException("Catalog line $lineNumber: name, category, and filesystem are required")
+                }
+                fun parseFlag(value: String): Boolean = when (value.lowercase(Locale.ENGLISH)) {
+                    "true" -> true
+                    "false" -> false
+                    else -> throw IOException("Catalog line $lineNumber: invalid boolean '$value'")
+                }
+                val version = versionText.toLongOrNull()
+                    ?: throw IOException("Catalog line $lineNumber: invalid version '$versionText'")
+                App(name.lowercase(Locale.ENGLISH), category.lowercase(Locale.ENGLISH),
+                    filesystem.lowercase(Locale.ENGLISH), parseFlag(cli), parseFlag(gui),
+                    parseFlag(paid), version)
             }
+            if (apps.none { it.name == "gimp" && it.filesystemRequired == "debian" }) {
+                throw IOException("Catalog missing expected GIMP entry requiring Debian: $url")
+            }
+            apps
         } catch (err: Exception) {
-            val exception = IOException("Error getting apps list")
+            val exception = IOException("Cannot read or parse catalog $url: ${err.message}", err)
             logger.addExceptionBreadcrumb(exception)
             throw exception
         }
     }
-
     suspend fun fetchAppIcon(app: App) = withContext(Dispatchers.IO) {
         val directoryAndFilename = "${app.name}/${app.name}.png"
         val file = File("$filesDirPath/apps/$directoryAndFilename")

@@ -136,18 +136,29 @@ class FilesystemManager(
 
     @Throws(IOException::class)
     fun moveAppScriptToRequiredLocation(appName: String, appFilesystem: Filesystem) {
-        // Profile.d scripts execute in alphabetical order.
-        val fileNameToForceAppScriptToExecuteLast = "zzzzzzzzzzzzzzzz.sh"
-        val appScriptSource = File("$filesDirPath/apps/$appName/$appName.sh")
-        val appFilesystemProfileDDir = File("$filesDirPath/${appFilesystem.id}/etc/profile.d")
-        val appScriptProfileDTarget = File("$appFilesystemProfileDDir/$fileNameToForceAppScriptToExecuteLast")
-
+        val source = File("$filesDirPath/apps/$appName/$appName.sh")
+        val root = File("$filesDirPath/${appFilesystem.id}")
+        val profileDir = File(root, "etc/profile.d")
+        val destination = File(profileDir, "zzzzzzzzzzzzzzzz.sh")
         try {
-            appFilesystemProfileDDir.mkdirs()
-            appScriptSource.copyTo(appScriptProfileDTarget, overwrite = true)
+            if (!source.isFile || source.length() == 0L) {
+                throw IOException("Downloaded app script is missing or empty: ${source.absolutePath}")
+            }
+            // Do not create a fake filesystem by making etc/profile.d inside an empty root.
+            if (!root.isDirectory || !File(root, "etc").isDirectory) {
+                throw IOException("Linux filesystem is not extracted: ${root.absolutePath}")
+            }
+            if (!profileDir.isDirectory && !profileDir.mkdirs()) {
+                throw IOException("Cannot create profile.d directory: ${profileDir.absolutePath}")
+            }
+            source.copyTo(destination, overwrite = true)
+            if (!destination.isFile || destination.length() != source.length()) {
+                throw IOException("Installer script copy verification failed: ${destination.absolutePath}")
+            }
         } catch (err: Exception) {
-            val exception = IOException()
+            val exception = IOException("Cannot install $appName startup script: ${err.message}", err)
             logger.addExceptionBreadcrumb(exception)
+            android.util.Log.e("SakuraCandy", exception.message, exception)
             throw exception
         }
     }

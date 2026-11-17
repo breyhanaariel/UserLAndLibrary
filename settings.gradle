@@ -7,5 +7,3 @@ include ':pubkeyGenerator', ':bVNC', ':remoteClientLib'
 project(':bVNC').projectDir = new File('remote-desktop-clients/bVNC')
 project(':pubkeyGenerator').projectDir = new File('remote-desktop-clients/pubkeyGenerator')
 project(':remoteClientLib').projectDir = new File('remote-desktop-clients/remoteClientLib')
-include ':remoteClientLib:jni:libs:deps:FreeRDP:client:Android:Studio:freeRDPCore'
-project(':remoteClientLib:jni:libs:deps:FreeRDP:client:Android:Studio:freeRDPCore').projectDir = new File('remote-desktop-clients/remoteClientLib/jni/libs/deps/FreeRDP/client/Android/Studio/freeRDPCore')
