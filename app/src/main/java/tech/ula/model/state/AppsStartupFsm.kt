@@ -110,6 +110,10 @@ class AppsStartupFsm(
             }
             state.postValue(AppScriptCopySucceeded)
         } catch (err: Exception) {
+            logger.addExceptionBreadcrumb(err)
+            logger.addBreadcrumb(UlaBreadcrumb(className, BreadcrumbType.RuntimeError,
+                "Cannot install ${app.name} startup script: ${err.message}"))
+            android.util.Log.e("SakuraCandy", "App startup script failed for ${app.name}", err)
             state.postValue(AppScriptCopyFailed)
         }
     }
