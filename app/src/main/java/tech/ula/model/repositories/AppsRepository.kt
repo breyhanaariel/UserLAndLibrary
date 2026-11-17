@@ -49,9 +49,9 @@ class AppsRepository(
                     distributionsList.add(app.name)
                 }
             }
-            // Remove only cached app catalog records, not filesystems, sessions or user files.
-            // This replaces stale GIMP metadata (filesystemRequired=gimp) with Debian metadata.
-            appsDao.deleteAllApps()
+            // Preserve existing catalog rows and session relationships; update by primary key.
+            // In particular, refresh stale GIMP filesystemRequired metadata without a destructive wipe.
+            if (apps.isEmpty()) throw java.io.IOException("App catalog is empty")
             for (app in apps) {
                 appsDao.insertApp(app)
             }
