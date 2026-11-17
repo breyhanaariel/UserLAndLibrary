@@ -36,6 +36,7 @@ class SessionStartupFsm(
     private val filesystemDao = ulaDatabase.filesystemDao()
     private val filesystemsLiveData = filesystemDao.getAllFilesystems()
     private val filesystems = mutableListOf<Filesystem>()
+    private var selectedSession: Session? = null
 
     private val extractionLogger: (String) -> Unit = { line ->
         state.postValue(ExtractingFilesystem(line))
@@ -122,6 +123,7 @@ class SessionStartupFsm(
     }
 
     private fun handleSessionSelected(session: Session) {
+        selectedSession = session
         if (activeSessions.isNotEmpty()) {
             if (activeSessions.contains(session)) {
                 state.postValue(SessionIsRestartable(session))
@@ -268,25 +270,35 @@ class SessionStartupFsm(
     private suspend fun handleExtractFilesystem(filesystem: Filesystem) {
         val filesystemDirectoryName = "${filesystem.id}"
 
-        if (filesystemManager.hasFilesystemBeenSuccessfullyExtracted(filesystemDirectoryName)) {
-            filesystemManager.removeRootfsFilesFromFilesystem(filesystemDirectoryName)
-            state.postValue(ExtractionHasCompletedSuccessfully)
+        if (!filesystemManager.hasFilesystemBeenSuccessfullyExtracted(filesystemDirectoryName)) {
+            val result = filesystemManager.extractFilesystem(filesystem, extractionLogger)
+            if (result is FailedExecution) {
+                state.postValue(ExtractionFailed(result.reason))
+                return
+            }
+        }
+
+        if (!filesystemManager.hasFilesystemBeenSuccessfullyExtracted(filesystemDirectoryName)) {
+            state.postValue(ExtractionFailed(reason = "Filesystem extraction did not complete."))
             return
         }
 
-        val result = filesystemManager.extractFilesystem(filesystem, extractionLogger)
-        if (result is FailedExecution) {
-            state.postValue(ExtractionFailed(result.reason))
-            return
+        // App startup scripts belong inside the extracted root, never in an empty directory.
+        val session = selectedSession
+        if (session != null && session.isAppsSession && session.filesystemId == filesystem.id) {
+            try {
+                withContext(Dispatchers.IO) {
+                    filesystemManager.moveAppScriptToRequiredLocation(session.name, filesystem)
+                }
+            } catch (err: Exception) {
+                logger.addExceptionBreadcrumb(err)
+                state.postValue(ExtractionFailed("App startup script installation failed: ${err.message}"))
+                return
+            }
         }
 
-        if (filesystemManager.hasFilesystemBeenSuccessfullyExtracted(filesystemDirectoryName)) {
-            filesystemManager.removeRootfsFilesFromFilesystem(filesystemDirectoryName)
-            state.postValue(ExtractionHasCompletedSuccessfully)
-            return
-        }
-
-        state.postValue(ExtractionFailed(reason = "Unknown reason."))
+        filesystemManager.removeRootfsFilesFromFilesystem(filesystemDirectoryName)
+        state.postValue(ExtractionHasCompletedSuccessfully)
     }
 }
 
