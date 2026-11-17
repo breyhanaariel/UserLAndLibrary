@@ -30,7 +30,13 @@ class GithubApiClient(
 
     // This function can be used to tune the release used for each asset type for testing purposes.
     private fun getReleaseToUseForRepo(repo: String): String {
-        return BuildConfig.DEFAULT_RELEASE
+        // GIMP has its own asset repository and release history. The generic
+        // UserLAnd v7.7.9 tag does not exist in UserLAnd-Assets-gimp.
+        return if (repo.equals("gimp", ignoreCase = true)) {
+            "tags/v0.0.1"
+        } else {
+            BuildConfig.DEFAULT_RELEASE
+        }
     }
 
     @Throws(IOException::class)
