@@ -106,7 +106,11 @@ class AppsStartupFsm(
         state.postValue(CopyingAppScript)
         try {
             withContext(Dispatchers.IO) {
-                filesystemManager.moveAppScriptToRequiredLocation(app.name, filesystem)
+                // A new apps filesystem has not been downloaded/extracted yet.
+                // SessionStartupFsm installs the script after successful extraction.
+                if (filesystemManager.hasFilesystemBeenSuccessfullyExtracted("${filesystem.id}")) {
+                    filesystemManager.moveAppScriptToRequiredLocation(app.name, filesystem)
+                }
             }
             state.postValue(AppScriptCopySucceeded)
         } catch (err: Exception) {
