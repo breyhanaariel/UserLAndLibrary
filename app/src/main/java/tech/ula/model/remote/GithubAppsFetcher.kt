@@ -67,8 +67,8 @@ class GithubAppsFetcher(
                     filesystem.lowercase(Locale.ENGLISH), parseFlag(cli), parseFlag(gui),
                     parseFlag(paid), version)
             }
-            if (apps.none { it.name == "gimp" && it.filesystemRequired == "debian" }) {
-                throw IOException("Catalog missing expected GIMP entry requiring Debian: $url")
+            if (apps.none { it.name == "gimp" && it.filesystemRequired == "gimp" }) {
+                throw IOException("Catalog missing expected GIMP entry requiring GIMP filesystem: $url")
             }
             apps
         } catch (err: Exception) {
