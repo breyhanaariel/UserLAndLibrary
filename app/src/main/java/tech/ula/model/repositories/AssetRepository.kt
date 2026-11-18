@@ -1,6 +1,7 @@
 package tech.ula.model.repositories
 
 import android.content.SharedPreferences
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import tech.ula.BuildConfig
@@ -83,7 +84,25 @@ class AssetRepository(
             assetPreferences.setAssetList(distributionType, list)
             list
         } catch (err: Exception) {
-            assetPreferences.getCachedAssetList(distributionType)
+            val cached = assetPreferences.getCachedAssetList(distributionType)
+            val custom = defaultSharedPreferences.getBoolean(
+                "pref_custom_filesystem_enabled",
+                BuildConfig.DEFAULT_CUSTOM_FILESYSTEM_ENABLED
+            )
+            val source = if (custom) {
+                "custom filesystem URL (redacted)"
+            } else {
+                "https://api.github.com/repos/CypherpunkArmory/UserLAnd-Assets-$distributionType/releases/tags/v0.0.1"
+            }
+            Log.e(
+                "SakuraCandy",
+                "Asset list retrieval failed: distribution=$distributionType, " +
+                    "source=$source, exception=${err.javaClass.name}, " +
+                    "cause=${err.cause?.javaClass?.name ?: "none"}, " +
+                    "cachedAssets=${cached.size}"
+            )
+            logger.addExceptionBreadcrumb(err)
+            cached
         }
     }
 
