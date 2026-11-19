@@ -211,8 +211,22 @@ class AssetDownloader(
         stagingDirectory.deleteRecursively()
     }
 
+    // Parse around the known asset filename; distribution IDs may contain hyphens.
+    private fun parseDownloadName(downloadName: String, assetName: String): Pair<String, String> {
+        val separator = "-$assetName-"
+        val boundary = downloadName.lastIndexOf(separator)
+        require(boundary > 0) { "Invalid download name: $downloadName" }
+        val distribution = downloadName.substring(0, boundary)
+        val version = downloadName.substring(boundary + separator.length)
+        require(version.isNotBlank() && !distribution.contains('/') && !version.contains('/')) {
+            "Invalid download name: $downloadName"
+        }
+        return distribution to version
+    }
+
     private suspend fun moveRootfsAssetInternal(rootFsFile: File) = withContext(Dispatchers.IO) {
-        val (repo, filename, version) = rootFsFile.name.split("-", limit = 4)
+        val filename = "rootfs.tar.gz"
+        val (repo, version) = parseDownloadName(rootFsFile.name, filename)
         val destinationDirectory = File("${ulaFiles.filesDir.absolutePath}/$repo")
         val target = File("${destinationDirectory.absolutePath}/$filename")
 
@@ -232,7 +246,8 @@ class AssetDownloader(
     }
 
     private suspend fun extractAssets(tarFile: File, stagingDirectory: File, archiverFactory: ArchiveFactoryWrapper) = withContext(Dispatchers.IO) {
-        val (repo, filename, version) = tarFile.name.split("-", limit = 3)
+        val filename = "assets.tar.gz"
+        val (repo, version) = parseDownloadName(tarFile.name, filename)
         val stagingTarget = File("${stagingDirectory.absolutePath}/$filename")
         val destination = File("${ulaFiles.filesDir.path}/$repo")
 
