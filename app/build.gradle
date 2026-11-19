@@ -1,7 +1,21 @@
 
+apply plugin: 'com.android.library'
+
+apply plugin: 'kotlin-android'
+
+apply plugin: 'kotlin-parcelize'
+
+apply plugin: 'kotlin-kapt'
+
+apply plugin: 'androidx.navigation.safeargs.kotlin'
+
+apply plugin: 'jacoco'
+
+apply plugin: 'de.undercouch.download'
+
 // SAKURA_KOTLIN_STDLIB_ALIGNMENT
-// Align Kotlin standard-library artifacts with Kotlin 1.9.20.
-// Do not override unrelated Kotlin libraries.
+// Align Kotlin stdlib modules after plugins have registered their configurations.
+// Do not override unrelated Kotlin dependencies.
 configurations.configureEach {
     resolutionStrategy.eachDependency { details ->
         if (details.requested.group == 'org.jetbrains.kotlin' &&
@@ -16,19 +30,6 @@ configurations.configureEach {
         }
     }
 }
-apply plugin: 'com.android.library'
-
-apply plugin: 'kotlin-android'
-
-apply plugin: 'kotlin-parcelize'
-
-apply plugin: 'kotlin-kapt'
-
-apply plugin: 'androidx.navigation.safeargs.kotlin'
-
-apply plugin: 'jacoco'
-
-apply plugin: 'de.undercouch.download'
 
 android {
     kotlinOptions {
