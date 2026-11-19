@@ -10,6 +10,9 @@ jobs:
   downloader-tests:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Check out migration branch and nested libraries
         uses: actions/checkout@v5
@@ -38,7 +41,18 @@ jobs:
         with:
           distribution: temurin
           java-version: '11'
-      - name: Execute AssetDownloader regression tests
+      - name: Verify checkout and Gradle prerequisites
+        run: |
+          git rev-parse HEAD
+          java -version
+          grep -n -E 'apply plugin:|^android[[:space:]]*\\{|compileSdkVersion|kotlin_version|android_plugin' app/build.gradle build.gradle
+          test -f ./gradlew
+      - name: Verify Android Gradle configuration first
         run: |
           chmod +x ./gradlew
-          ./gradlew :app:testDebugUnitTest --tests 'tech.ula.utils.AssetDownloaderTest' --no-daemon --stacktrace
+          set -o pipefail
+          ./gradlew :app:help --no-daemon --console=plain 2>&1 | tee gradle-config.log
+      - name: Execute AssetDownloader regression tests
+        run: |
+          set -o pipefail
+          ./gradlew :app:testDebugUnitTest --tests 'tech.ula.utils.AssetDownloaderTest' --no-daemon --console=plain 2>&1 | tee gradle-tests.log
