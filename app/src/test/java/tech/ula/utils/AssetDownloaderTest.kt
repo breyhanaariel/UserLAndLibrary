@@ -363,4 +363,44 @@ class AssetDownloaderTest {
         assertFalse(stagingDirectory.exists())
         verify(assetPreferences).setLatestDownloadVersion(type2, version)
     }
+    @Test
+    fun `prepareDownloadsForUse keeps hyphenated GIMP 3 rootfs isolated`() {
+        val metadata = DownloadMetadata(rootfsName, "sakura-gimp3", "v0.0.1", url1)
+        val downloaded = File(downloadDirectory, metadata.downloadTitle)
+        downloaded.writeText("isolated-rootfs")
+        runBlocking { assetDownloader.prepareDownloadsForUse(mockArchiveFactoryWrapper) }
+        assertEquals("isolated-rootfs", File(mockFilesDir, "sakura-gimp3/rootfs.tar.gz").readText())
+        assertFalse(File(mockFilesDir, "sakura/rootfs.tar.gz").exists())
+        assertFalse(File(mockFilesDir, "gimp/rootfs.tar.gz").exists())
+        verify(assetPreferences).setLatestDownloadFilesystemVersion("sakura-gimp3", "v0.0.1")
+    }
+
+    @Test
+    fun `prepareDownloadsForUse extracts hyphenated GIMP 3 assets separately`() {
+        val metadata = DownloadMetadata(assetsName, "sakura-gimp3", "v0.0.1", url1)
+        File(downloadDirectory, metadata.downloadTitle).writeText("test-archive")
+        val staging = File(mockFilesDir, "staging/assets.tar.gz")
+        val destination = File(mockFilesDir, "sakura-gimp3")
+        whenever(mockArchiveFactoryWrapper.createArchiver(staging)).thenReturn(mockArchiver)
+        whenever(mockArchiver.extract(staging, destination)).then {
+            destination.mkdirs()
+            File(destination, "busybox").writeText("support")
+        }
+        runBlocking { assetDownloader.prepareDownloadsForUse(mockArchiveFactoryWrapper) }
+        verify(mockArchiver).extract(staging, destination)
+        verify(assetPreferences).setLatestDownloadVersion("sakura-gimp3", "v0.0.1")
+        assertFalse(File(mockFilesDir, "sakura").exists())
+        assertFalse(File(mockFilesDir, "gimp").exists())
+    }
+
+    @Test
+    fun `prepareDownloadsForUse retains legacy gimp rootfs directory`() {
+        val metadata = DownloadMetadata(rootfsName, "gimp", "v0.0.1", url1)
+        File(downloadDirectory, metadata.downloadTitle).writeText("legacy")
+        runBlocking { assetDownloader.prepareDownloadsForUse(mockArchiveFactoryWrapper) }
+        assertEquals("legacy", File(mockFilesDir, "gimp/rootfs.tar.gz").readText())
+        verify(assetPreferences).setLatestDownloadFilesystemVersion("gimp", "v0.0.1")
+        assertFalse(File(mockFilesDir, "sakura-gimp3").exists())
+    }
+
 }
