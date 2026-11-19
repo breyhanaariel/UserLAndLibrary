@@ -1,0 +1,38 @@
+name: Verify isolated GIMP 3 downloader regression tests
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  downloader-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out migration branch and nested libraries
+        uses: actions/checkout@v4
+        with:
+          ref: feature/gimp3-isolated-rootfs
+          submodules: recursive
+          persist-credentials: false
+      - name: Record exact tested revision
+        run: |
+          git rev-parse HEAD
+          git submodule status --recursive
+      - name: Configure Java 11 for Gradle 6.5
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Configure Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install Android 30 platform and build tools
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-30" "build-tools;30.0.3"
+      - name: Execute AssetDownloader regression tests
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:testDebugUnitTest --tests 'tech.ula.utils.AssetDownloaderTest' --no-daemon --stacktrace
