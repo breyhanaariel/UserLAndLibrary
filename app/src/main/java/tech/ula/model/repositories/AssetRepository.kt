@@ -48,6 +48,7 @@ class AssetRepository(
         }
 
         val repo = filesystem.distributionType
+        SakuraGimp3Filesystem.requirePublishedRelease(repo)
         if (!BuildConfig.FILESYSTEM_ONLY_ASSET) {
             downloadRequirements.addAll(getRegularAssetDownloadRequirements(assetList, repo))
         }
@@ -78,6 +79,7 @@ class AssetRepository(
 
     @Throws(UnknownHostException::class)
     suspend fun getAssetList(distributionType: String): List<Asset> {
+        SakuraGimp3Filesystem.requirePublishedRelease(distributionType)
         return try {
             val list = fetchAssetList(distributionType)
             assetPreferences.setAssetList(distributionType, list)
