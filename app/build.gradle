@@ -32,14 +32,13 @@ configurations.configureEach {
 }
 
 android {
+    // AGP 4.1.1 / Gradle 6.5 configuration: namespace and
+    // buildFeatures.buildConfig are newer Android Gradle DSL options.
+    // Keep the library namespace defined by its AndroidManifest.xml.
+    compileSdkVersion 30
     kotlinOptions {
         jvmTarget = '1.8'
     }
-    buildFeatures {
-        buildConfig true
-    }
-    namespace 'tech.ula'
-    compileSdkVersion 30
     buildFeatures {
         viewBinding true
     }
