@@ -2,6 +2,11 @@ name: Verify isolated GIMP 3 downloader regression tests
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/gimp3-downloader-tests.yml
 
 permissions:
   contents: read
@@ -45,7 +50,7 @@ jobs:
         run: |
           git rev-parse HEAD
           java -version
-          grep -n -E 'apply plugin:|^android[[:space:]]*\\{|compileSdkVersion|kotlin_version|android_plugin' app/build.gradle build.gradle
+          grep -n -E 'apply plugin:|compileSdkVersion|kotlin_version|android_plugin' app/build.gradle build.gradle
           test -f ./gradlew
       - name: Verify Android Gradle configuration first
         run: |
