@@ -52,6 +52,12 @@ jobs:
           java -version
           grep -n -E 'apply plugin:|compileSdkVersion|kotlin_version|android_plugin' app/build.gradle build.gradle
           test -f ./gradlew
+          # Fail with a targeted diagnostic before Gradle configuration if removed
+          # rootProject version properties are referenced in the module.
+          if grep -nE 'rootProject\\.ext\\.(appVersionCode|appVersionName)' app/build.gradle; then
+            echo "ERROR: Android module references undefined rootProject version properties"
+            exit 1
+          fi
       - name: Verify Android Gradle configuration first
         run: |
           chmod +x ./gradlew
