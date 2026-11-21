@@ -59,8 +59,10 @@ android {
 
         buildConfigField "String", "REPO_NAME", "\"FoxBox\""
 
-        buildConfigField 'String', 'VERSION_CODE', '\"' + rootProject.ext.appVersionCode + '\"'
-        buildConfigField 'String', 'VERSION_NAME', '\"' + rootProject.ext.appVersionName + '\"'
+        // Use the existing defaultConfig values; the root project does not
+        // define appVersionCode or appVersionName extra properties.
+        buildConfigField 'String', 'VERSION_CODE', '\"' + vcode + '\"'
+        buildConfigField 'String', 'VERSION_NAME', '\"3.0.3\"'
 
         vectorDrawables.useSupportLibrary = true
         buildConfigField 'boolean', 'ENABLE_PLAY_SERVICES', 'true'
