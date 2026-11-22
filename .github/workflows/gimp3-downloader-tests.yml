@@ -1,12 +1,9 @@
 name: Verify isolated GIMP 3 downloader regression tests
 
+# Manual diagnostic only until the exact Android dependency graph is reproducible.
+# Do not automatically rerun full Gradle on routine workflow edits.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-    paths:
-      - .github/workflows/gimp3-downloader-tests.yml
 
 permissions:
   contents: read
@@ -29,6 +26,10 @@ jobs:
         run: |
           git rev-parse HEAD
           git submodule status --recursive
+      - name: Audit pinned Android build baseline before expensive setup
+        run: |
+          set -euo pipefail
+          python3 verification/check_android_build_baseline.py | tee android-build-baseline.json
       - name: Configure Java 17 for Android SDK tools
         uses: actions/setup-java@v5
         with:
