@@ -89,6 +89,35 @@ jobs:
               new File('remote-desktop-clients/remoteClientLib/jni/libs/deps/FreeRDP/client/Android/Studio/freeRDPCore')
           GRADLE
           echo "Pinned FreeRDP source restored for CI only; no production gitlink modified"
+      - name: Disable obsolete Termux publishing plugins in CI only
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path("termux-app")
+          publishing_plugins = (
+              'plugins {\n'
+              '    id "com.jfrog.bintray" version "1.8.5"\n'
+              '    id "com.github.dcendents.android-maven" version "2.1"\n'
+              '}\n\n'
+          )
+          publishing_script = "apply from: '../scripts/bintray-publish.gradle'"
+
+          for module in ("terminal-emulator", "terminal-view"):
+              path = root / module / "build.gradle"
+              source = path.read_text()
+              if not source.startswith(publishing_plugins):
+                  raise SystemExit(f"Unexpected publishing plugins in {path}; refusing to patch")
+              if source.count(publishing_script) != 1:
+                  raise SystemExit(f"Unexpected publishing script references in {path}; refusing to patch")
+              updated = source[len(publishing_plugins):].replace(publishing_script, "")
+              if "apply plugin: 'com.android.library'" not in updated:
+                  raise SystemExit(f"Android library plugin missing from {path}; refusing to patch")
+              path.write_text(updated)
+              print(f"Disabled legacy publishing only: {path}")
+          PY
+          git -C termux-app diff -- terminal-emulator/build.gradle terminal-view/build.gradle
       - name: Verify Android Gradle configuration first
         run: |
           chmod +x ./gradlew
