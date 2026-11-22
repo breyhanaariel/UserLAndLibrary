@@ -1,0 +1,47 @@
+name: Verify GIMP 3 downloader filename isolation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/gimp3-parser-isolation.yml
+
+permissions:
+  contents: read
+
+jobs:
+  parser-isolation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact migration implementation
+        uses: actions/checkout@v5
+        with:
+          ref: feature/gimp3-isolated-rootfs
+          persist-credentials: false
+      - name: Configure Java 11
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Compile production parser and standalone tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD
+          mkdir -p /tmp/gimp3-parser-classes
+          javac -d /tmp/gimp3-parser-classes \
+            app/src/main/java/tech/ula/utils/DownloadNameParser.java \
+            verification/DownloadNameParserStandaloneTest.java
+          java -cp /tmp/gimp3-parser-classes DownloadNameParserStandaloneTest
+      - name: Verify Android downloader calls the tested parser
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(grep -c 'DownloadNameParser.parse(' app/src/main/java/tech/ula/utils/AssetDownloader.kt)" -eq 2
+          if grep -q 'private fun parseDownloadName' app/src/main/java/tech/ula/utils/AssetDownloader.kt; then
+            echo 'Production still contains an untested duplicate parser'
+            exit 1
+          fi
