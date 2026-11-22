@@ -118,6 +118,20 @@ jobs:
               print(f"Disabled legacy publishing only: {path}")
           PY
           git -C termux-app diff -- terminal-emulator/build.gradle terminal-view/build.gradle
+      - name: Verify FreeRDP Git version metadata before Gradle
+        run: |
+          set -euo pipefail
+          FREERDP_DIR=remote-desktop-clients/remoteClientLib/jni/libs/deps/FreeRDP
+          FREERDP_SHA=c0020308ebd33cefbd4548f03697f0c186a3631b
+          test "$(git -C "$FREERDP_DIR" rev-parse HEAD)" = "$FREERDP_SHA"
+          # The legacy FreeRDP Studio/build.gradle executes git describe --tags
+          # at configuration time. Restore genuine upstream tag history rather
+          # than inventing a version or modifying production source.
+          git -C "$FREERDP_DIR" fetch --unshallow --tags origin
+          (
+            cd "$FREERDP_DIR/client/Android/Studio"
+            git describe --tags
+          )
       - name: Verify Android Gradle configuration first
         run: |
           chmod +x ./gradlew
