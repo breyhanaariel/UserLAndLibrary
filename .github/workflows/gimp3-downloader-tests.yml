@@ -58,6 +58,37 @@ jobs:
             echo "ERROR: Android module references undefined rootProject version properties"
             exit 1
           fi
+      - name: Restore pinned upstream FreeRDP Android source for CI
+        run: |
+          set -euo pipefail
+          FREERDP_SHA=c0020308ebd33cefbd4548f03697f0c186a3631b
+          FREERDP_PARENT=remote-desktop-clients/remoteClientLib/jni/libs/deps
+          mkdir -p "$FREERDP_PARENT"
+          git clone --filter=blob:none --no-checkout https://github.com/FreeRDP/FreeRDP.git "$FREERDP_PARENT/FreeRDP"
+          git -C "$FREERDP_PARENT/FreeRDP" fetch --depth=1 origin "$FREERDP_SHA"
+          git -C "$FREERDP_PARENT/FreeRDP" checkout --detach FETCH_HEAD
+          test "$(git -C "$FREERDP_PARENT/FreeRDP" rev-parse HEAD)" = "$FREERDP_SHA"
+          test -f "$FREERDP_PARENT/FreeRDP/client/Android/Studio/freeRDPCore/build.gradle"
+          # The upstream Android library requires root ext properties not
+          # defined in UserLAndLibrary. Supply them only in this CI checkout.
+          cat >> build.gradle <<'GRADLE'
+
+          ext {
+              compileApi = 30
+              toolsVersion = '30.0.3'
+              minApi = 21
+              targetApi = 30
+              versionCode = 1
+              versionName = 'ci-verification'
+          }
+          GRADLE
+          cat >> settings.gradle <<'GRADLE'
+
+          include ':remoteClientLib:jni:libs:deps:FreeRDP:client:Android:Studio:freeRDPCore'
+          project(':remoteClientLib:jni:libs:deps:FreeRDP:client:Android:Studio:freeRDPCore').projectDir =
+              new File('remote-desktop-clients/remoteClientLib/jni/libs/deps/FreeRDP/client/Android/Studio/freeRDPCore')
+          GRADLE
+          echo "Pinned FreeRDP source restored for CI only; no production gitlink modified"
       - name: Verify Android Gradle configuration first
         run: |
           chmod +x ./gradlew
